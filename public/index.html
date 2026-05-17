@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MRZ Workbench</title>
+    <meta
+      name="description"
+      content="Generate and check TD3 passport machine readable zones in the browser."
+    >
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #1d2421;
+        --muted: #66736d;
+        --paper: #f4f2eb;
+        --panel: #fffefa;
+        --panel-2: #e7ece6;
+        --line: #cbd4cb;
+        --green: #225546;
+        --blue: #344f76;
+        --red: #a4423d;
+        --amber: #c0852d;
+        --shadow: 0 18px 48px rgba(29, 36, 33, 0.12);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+        background:
+          linear-gradient(135deg, rgba(34, 85, 70, 0.09) 25%, transparent 25%) 0 0 / 28px 28px,
+          linear-gradient(135deg, transparent 75%, rgba(52, 79, 118, 0.08) 75%) 0 0 / 28px 28px,
+          var(--paper);
+      }
+
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .shell {
+        width: min(1480px, 100%);
+        margin: 0 auto;
+        padding: clamp(16px, 3vw, 34px);
+      }
+
+      .topbar {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 18px 0 28px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(38px, 7vw, 86px);
+        line-height: 0.9;
+        font-weight: 600;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        max-width: 590px;
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: clamp(16px, 2vw, 19px);
+        line-height: 1.45;
+      }
+
+      .badge {
+        display: inline-flex;
+        min-height: 34px;
+        align-items: center;
+        border: 1px solid var(--green);
+        padding: 0 12px;
+        color: var(--green);
+        background: rgba(255, 254, 250, 0.72);
+        font: 700 12px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+        text-transform: uppercase;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(330px, 0.94fr) minmax(360px, 1.06fr);
+        gap: clamp(16px, 2vw, 24px);
+        align-items: start;
+      }
+
+      .panel {
+        border: 1px solid var(--line);
+        background: rgba(255, 254, 250, 0.92);
+        box-shadow: var(--shadow);
+      }
+
+      .controls {
+        padding: clamp(18px, 3vw, 28px);
+      }
+
+      .tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-bottom: 22px;
+      }
+
+      .tab {
+        min-height: 46px;
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        color: var(--muted);
+        font: 700 13px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+        text-transform: uppercase;
+      }
+
+      .tab[aria-selected="true"] {
+        color: var(--panel);
+        border-color: var(--green);
+        background: var(--green);
+      }
+
+      .mode {
+        display: none;
+      }
+
+      .mode.active {
+        display: block;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      label {
+        display: grid;
+        gap: 7px;
+        color: var(--muted);
+        font: 700 12px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace;
+        text-transform: uppercase;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        min-height: 45px;
+        border: 1px solid var(--line);
+        border-radius: 0;
+        background: #fbfaf5;
+        color: var(--ink);
+        padding: 11px 12px;
+        outline: none;
+      }
+
+      textarea {
+        min-height: 142px;
+        resize: vertical;
+        font: 700 17px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px rgba(52, 79, 118, 0.14);
+      }
+
+      .wide {
+        grid-column: 1 / -1;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .button {
+        min-height: 46px;
+        border: 1px solid var(--ink);
+        padding: 0 16px;
+        background: var(--ink);
+        color: var(--panel);
+        font: 700 13px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+        text-transform: uppercase;
+      }
+
+      .button.secondary {
+        background: transparent;
+        color: var(--ink);
+      }
+
+      .button:hover,
+      .button:focus-visible {
+        transform: translateY(-1px);
+      }
+
+      .output {
+        overflow: hidden;
+      }
+
+      .document {
+        min-height: 520px;
+        padding: clamp(18px, 3vw, 34px);
+        background:
+          linear-gradient(90deg, rgba(34, 85, 70, 0.07) 1px, transparent 1px) 0 0 / 34px 34px,
+          #e9eee8;
+      }
+
+      .passport {
+        position: relative;
+        min-height: 430px;
+        border: 1px solid #b6c1b8;
+        background: #fffdf4;
+        box-shadow: 16px 18px 0 rgba(34, 85, 70, 0.14);
+        padding: clamp(18px, 3vw, 28px);
+      }
+
+      .passport-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        padding-bottom: 18px;
+        border-bottom: 2px solid var(--green);
+        color: var(--green);
+        font: 700 12px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace;
+        text-transform: uppercase;
+      }
+
+      .identity {
+        display: grid;
+        grid-template-columns: 118px 1fr;
+        gap: 22px;
+        padding: 24px 0;
+      }
+
+      .photo {
+        aspect-ratio: 3 / 4;
+        border: 1px solid #c9d2ca;
+        background:
+          radial-gradient(circle at 50% 32%, #d2b488 0 17%, transparent 18%),
+          linear-gradient(140deg, transparent 0 43%, rgba(52, 79, 118, 0.24) 44% 56%, transparent 57%),
+          #edf0ea;
+      }
+
+      .facts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .fact span {
+        display: block;
+        color: var(--muted);
+        font: 700 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+        text-transform: uppercase;
+      }
+
+      .fact strong {
+        font-size: 18px;
+        overflow-wrap: anywhere;
+      }
+
+      .mrz {
+        margin-top: 12px;
+        border-top: 1px dashed #9eaaa2;
+        padding-top: 16px;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        font: 800 clamp(17px, 2.3vw, 26px)/1.22 ui-monospace, SFMono-Regular, Consolas, monospace;
+        letter-spacing: 0;
+      }
+
+      .status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border-top: 1px solid var(--line);
+        padding: 16px clamp(18px, 3vw, 28px);
+        background: var(--panel);
+      }
+
+      .status strong {
+        font: 800 13px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+        text-transform: uppercase;
+      }
+
+      .status.valid strong {
+        color: var(--green);
+      }
+
+      .status.invalid strong {
+        color: var(--red);
+      }
+
+      .checks {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(90px, 1fr));
+        gap: 1px;
+        border-top: 1px solid var(--line);
+        background: var(--line);
+      }
+
+      .check {
+        min-height: 78px;
+        padding: 12px;
+        background: #fbfaf5;
+      }
+
+      .check span {
+        display: block;
+        color: var(--muted);
+        font: 700 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+        text-transform: uppercase;
+      }
+
+      .check strong {
+        display: block;
+        margin-top: 6px;
+        font: 800 20px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+
+      .ok {
+        color: var(--green);
+      }
+
+      .bad {
+        color: var(--red);
+      }
+
+      .hint {
+        margin: 14px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .error {
+        min-height: 20px;
+        margin-top: 12px;
+        color: var(--red);
+        font: 700 13px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+      }
+
+      @media (max-width: 980px) {
+        .topbar,
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .topbar {
+          display: grid;
+          align-items: start;
+        }
+
+        .checks {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 620px) {
+        .grid,
+        .identity,
+        .facts {
+          grid-template-columns: 1fr;
+        }
+
+        .checks {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <div class="badge">ICAO 9303 TD3</div>
+          <h1>MRZ Workbench</h1>
+          <p class="subtitle">
+            Generate a passport machine readable zone or paste one in to check
+            field lengths, check digits, and the composite checksum.
+          </p>
+        </div>
+      </header>
+
+      <section class="workspace" aria-label="MRZ tool">
+        <div class="panel controls">
+          <div class="tabs" role="tablist" aria-label="Tool mode">
+            <button class="tab" id="generate-tab" type="button" role="tab" aria-selected="true" aria-controls="generate-panel">Generate</button>
+            <button class="tab" id="check-tab" type="button" role="tab" aria-selected="false" aria-controls="check-panel">Check</button>
+          </div>
+
+          <form id="generate-panel" class="mode active" aria-labelledby="generate-tab">
+            <div class="grid">
+              <label>Document type
+                <input id="docType" value="P" maxlength="2" autocomplete="off">
+              </label>
+              <label>Issuing state
+                <input id="country" value="UTO" maxlength="3" autocomplete="off">
+              </label>
+              <label>Surname
+                <input id="surname" value="Eriksson" autocomplete="off">
+              </label>
+              <label>Given names
+                <input id="given" value="Anna Maria" autocomplete="off">
+              </label>
+              <label>Document number
+                <input id="number" value="L898902C3" maxlength="9" autocomplete="off">
+              </label>
+              <label>Nationality
+                <input id="nationality" value="UTO" maxlength="3" autocomplete="off">
+              </label>
+              <label>Birth date
+                <input id="birth" value="740812" inputmode="numeric" maxlength="6" autocomplete="off">
+              </label>
+              <label>Sex
+                <select id="sex">
+                  <option>F</option>
+                  <option>M</option>
+                  <option>X</option>
+                  <option>&lt;</option>
+                </select>
+              </label>
+              <label>Expiry date
+                <input id="expiry" value="120415" inputmode="numeric" maxlength="6" autocomplete="off">
+              </label>
+              <label>Optional data
+                <input id="optional" value="ZE184226B" maxlength="14" autocomplete="off">
+              </label>
+            </div>
+            <div class="actions">
+              <button class="button" type="submit">Generate MRZ</button>
+              <button class="button secondary" id="loadSpecimen" type="button">Load Specimen</button>
+            </div>
+            <p class="hint">Dates use YYMMDD. Fields are transliterated into MRZ-safe uppercase text and padded with filler characters.</p>
+            <div class="error" id="generateError" aria-live="polite"></div>
+          </form>
+
+          <form id="check-panel" class="mode" aria-labelledby="check-tab">
+            <label>Paste TD3 MRZ
+              <textarea id="mrzInput" spellcheck="false">P&lt;UTOERIKSSON&lt;&lt;ANNA&lt;MARIA&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;
+L898902C36UTO7408122F1204159ZE184226B&lt;&lt;&lt;&lt;&lt;10</textarea>
+            </label>
+            <div class="actions">
+              <button class="button" type="submit">Check MRZ</button>
+              <button class="button secondary" id="useCurrent" type="button">Use Current Output</button>
+            </div>
+            <p class="hint">The checker expects two TD3 lines of 44 characters each.</p>
+            <div class="error" id="checkError" aria-live="polite"></div>
+          </form>
+        </div>
+
+        <section class="panel output" aria-label="Generated or checked MRZ output">
+          <div class="document">
+            <article class="passport">
+              <div class="passport-head">
+                <span>Machine Readable Travel Document</span>
+                <span id="previewType">TD3 Passport</span>
+              </div>
+              <div class="identity">
+                <div class="photo" aria-hidden="true"></div>
+                <div class="facts">
+                  <div class="fact"><span>Name</span><strong id="previewName">ERIKSSON, ANNA MARIA</strong></div>
+                  <div class="fact"><span>Document No.</span><strong id="previewNumber">L898902C3</strong></div>
+                  <div class="fact"><span>Nationality</span><strong id="previewNationality">UTO</strong></div>
+                  <div class="fact"><span>Birth / Expiry</span><strong id="previewDates">740812 / 120415</strong></div>
+                </div>
+              </div>
+              <div class="mrz" id="mrzOutput" aria-label="MRZ code"></div>
+            </article>
+          </div>
+          <div class="status valid" id="status">
+            <strong>Valid MRZ</strong>
+            <span id="statusText">All check digits match.</span>
+          </div>
+          <div class="checks" id="checks" aria-label="Check digit results"></div>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const weights = [7, 3, 1];
+      const fields = {
+        docType: document.querySelector("#docType"),
+        country: document.querySelector("#country"),
+        surname: document.querySelector("#surname"),
+        given: document.querySelector("#given"),
+        number: document.querySelector("#number"),
+        nationality: document.querySelector("#nationality"),
+        birth: document.querySelector("#birth"),
+        sex: document.querySelector("#sex"),
+        expiry: document.querySelector("#expiry"),
+        optional: document.querySelector("#optional")
+      };
+      const generatePanel = document.querySelector("#generate-panel");
+      const checkPanel = document.querySelector("#check-panel");
+      const output = document.querySelector("#mrzOutput");
+      const statusBox = document.querySelector("#status");
+      const statusText = document.querySelector("#statusText");
+      const checks = document.querySelector("#checks");
+      const checkError = document.querySelector("#checkError");
+      const generateError = document.querySelector("#generateError");
+      const mrzInput = document.querySelector("#mrzInput");
+      let currentMrz = "";
+
+      function clean(value) {
+        return value
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9<]/g, "<");
+      }
+
+      function pad(value, length) {
+        return clean(value).slice(0, length).padEnd(length, "<");
+      }
+
+      function nameField(surname, given) {
+        const primary = clean(surname).replace(/<+/g, "<");
+        const secondary = clean(given).replace(/<+/g, "<");
+        return pad(`${primary}<<${secondary}`, 39);
+      }
+
+      function valueForChar(char) {
+        if (char === "<") return 0;
+        if (/[0-9]/.test(char)) return Number(char);
+        if (/[A-Z]/.test(char)) return char.charCodeAt(0) - 55;
+        return 0;
+      }
+
+      function checkDigit(value) {
+        return String([...value].reduce((sum, char, index) => {
+          return sum + valueForChar(char) * weights[index % 3];
+        }, 0) % 10);
+      }
+
+      function validateDate(value, label) {
+        if (!/^\d{6}$/.test(value)) {
+          throw new Error(`${label} must be six digits in YYMMDD format.`);
+        }
+        const month = Number(value.slice(2, 4));
+        const day = Number(value.slice(4, 6));
+        if (month < 1 || month > 12 || day < 1 || day > 31) {
+          throw new Error(`${label} is not a valid YYMMDD date.`);
+        }
+      }
+
+      function generateMrz() {
+        const docType = pad(fields.docType.value || "P", 2);
+        const country = pad(fields.country.value || "UTO", 3);
+        const number = pad(fields.number.value, 9);
+        const nationality = pad(fields.nationality.value || fields.country.value || "UTO", 3);
+        const birth = clean(fields.birth.value);
+        const expiry = clean(fields.expiry.value);
+        const sex = pad(fields.sex.value || "<", 1);
+        const optional = pad(fields.optional.value, 14);
+
+        validateDate(birth, "Birth date");
+        validateDate(expiry, "Expiry date");
+
+        const line1 = `${docType}${country}${nameField(fields.surname.value, fields.given.value)}`;
+        const docCheck = checkDigit(number);
+        const birthCheck = checkDigit(birth);
+        const expiryCheck = checkDigit(expiry);
+        const optionalCheck = checkDigit(optional);
+        const compositeSource = `${number}${docCheck}${birth}${birthCheck}${expiry}${expiryCheck}${optional}${optionalCheck}`;
+        const compositeCheck = checkDigit(compositeSource);
+        const line2 = `${number}${docCheck}${nationality}${birth}${birthCheck}${sex}${expiry}${expiryCheck}${optional}${optionalCheck}${compositeCheck}`;
+        return `${line1}\n${line2}`;
+      }
+
+      function parseMrz(mrz) {
+        const lines = mrz.toUpperCase().split(/\n+/).map((line) => line.trim()).filter(Boolean);
+        if (lines.length !== 2 || lines.some((line) => line.length !== 44)) {
+          throw new Error("TD3 MRZ must contain exactly two lines of 44 characters.");
+        }
+        if (lines.some((line) => /[^A-Z0-9<]/.test(line))) {
+          throw new Error("MRZ can only contain uppercase letters, numbers, and filler characters.");
+        }
+
+        const [line1, line2] = lines;
+        const names = line1.slice(5).split("<<");
+        const surname = names[0].replace(/</g, " ").trim();
+        const given = (names[1] || "").replace(/</g, " ").trim();
+        const docNumber = line2.slice(0, 9);
+        const birth = line2.slice(13, 19);
+        const expiry = line2.slice(21, 27);
+        const optional = line2.slice(28, 42);
+        const results = [
+          { label: "Number", expected: checkDigit(docNumber), actual: line2[9] },
+          { label: "Birth", expected: checkDigit(birth), actual: line2[19] },
+          { label: "Expiry", expected: checkDigit(expiry), actual: line2[27] },
+          { label: "Optional", expected: checkDigit(optional), actual: line2[42] }
+        ];
+        const compositeSource = `${docNumber}${line2[9]}${birth}${line2[19]}${expiry}${line2[27]}${optional}${line2[42]}`;
+        results.push({ label: "Composite", expected: checkDigit(compositeSource), actual: line2[43] });
+
+        return {
+          lines,
+          surname,
+          given,
+          docNumber,
+          nationality: line2.slice(10, 13),
+          birth,
+          expiry,
+          results
+        };
+      }
+
+      function render(mrz) {
+        const parsed = parseMrz(mrz);
+        const valid = parsed.results.every((result) => result.expected === result.actual);
+        currentMrz = parsed.lines.join("\n");
+        output.textContent = currentMrz;
+        document.querySelector("#previewName").textContent = `${parsed.surname || "UNKNOWN"}, ${parsed.given || ""}`.trim();
+        document.querySelector("#previewNumber").textContent = parsed.docNumber.replace(/</g, "");
+        document.querySelector("#previewNationality").textContent = parsed.nationality.replace(/</g, "");
+        document.querySelector("#previewDates").textContent = `${parsed.birth} / ${parsed.expiry}`;
+        statusBox.className = `status ${valid ? "valid" : "invalid"}`;
+        statusBox.querySelector("strong").textContent = valid ? "Valid MRZ" : "Check Failed";
+        statusText.textContent = valid ? "All check digits match." : "One or more check digits do not match.";
+        checks.innerHTML = parsed.results.map((result) => {
+          const ok = result.expected === result.actual;
+          return `<div class="check"><span>${result.label}</span><strong class="${ok ? "ok" : "bad"}">${result.actual} ${ok ? "OK" : `NEEDS ${result.expected}`}</strong></div>`;
+        }).join("");
+      }
+
+      function setMode(mode) {
+        const generate = mode === "generate";
+        document.querySelector("#generate-tab").setAttribute("aria-selected", String(generate));
+        document.querySelector("#check-tab").setAttribute("aria-selected", String(!generate));
+        generatePanel.classList.toggle("active", generate);
+        checkPanel.classList.toggle("active", !generate);
+      }
+
+      document.querySelector("#generate-tab").addEventListener("click", () => setMode("generate"));
+      document.querySelector("#check-tab").addEventListener("click", () => setMode("check"));
+
+      generatePanel.addEventListener("submit", (event) => {
+        event.preventDefault();
+        generateError.textContent = "";
+        try {
+          render(generateMrz());
+        } catch (error) {
+          generateError.textContent = error.message;
+        }
+      });
+
+      checkPanel.addEventListener("submit", (event) => {
+        event.preventDefault();
+        checkError.textContent = "";
+        try {
+          render(mrzInput.value);
+        } catch (error) {
+          checkError.textContent = error.message;
+        }
+      });
+
+      document.querySelector("#useCurrent").addEventListener("click", () => {
+        mrzInput.value = currentMrz;
+      });
+
+      document.querySelector("#loadSpecimen").addEventListener("click", () => {
+        Object.entries({
+          docType: "P",
+          country: "UTO",
+          surname: "Eriksson",
+          given: "Anna Maria",
+          number: "L898902C3",
+          nationality: "UTO",
+          birth: "740812",
+          expiry: "120415",
+          optional: "ZE184226B"
+        }).forEach(([key, value]) => {
+          fields[key].value = value;
+        });
+        fields.sex.value = "F";
+        render(generateMrz());
+      });
+
+      render(generateMrz());
+    </script>
+  </body>
+</html>
